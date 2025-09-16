@@ -1,5 +1,10 @@
 buildscript {
-    ext.kotlin_version = '1.8.22'
+    ext {
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        minSdkVersion = 21
+        kotlin_version = '1.8.22'
+    }
     repositories {
         google()
         mavenCentral()
@@ -26,41 +31,6 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-// Ensure all Android libraries/plugins compile against SDK 34 (fixes android:attr/lStar)
-subprojects { subproject ->
-    plugins.withId('com.android.library') {
-        def androidExt = subproject.extensions.findByName('android')
-        if (androidExt != null) {
-            androidExt.compileSdkVersion = 34
-            if (androidExt.defaultConfig != null) {
-                androidExt.defaultConfig.targetSdkVersion = 34
-                if (androidExt.defaultConfig.minSdkVersion == null || androidExt.defaultConfig.minSdkVersion.apiLevel < 21) {
-                    androidExt.defaultConfig.minSdkVersion 21
-                }
-            }
-            if (androidExt.compileOptions != null) {
-                androidExt.compileOptions.sourceCompatibility = JavaVersion.VERSION_11
-                androidExt.compileOptions.targetCompatibility = JavaVersion.VERSION_11
-            }
-        }
-    }
-    plugins.withId('com.android.application') {
-        def androidExt = subproject.extensions.findByName('android')
-        if (androidExt != null) {
-            androidExt.compileSdkVersion = 34
-            if (androidExt.defaultConfig != null) {
-                androidExt.defaultConfig.targetSdkVersion = 34
-                if (androidExt.defaultConfig.minSdkVersion == null || androidExt.defaultConfig.minSdkVersion.apiLevel < 21) {
-                    androidExt.defaultConfig.minSdkVersion 21
-                }
-            }
-            if (androidExt.compileOptions != null) {
-                androidExt.compileOptions.sourceCompatibility = JavaVersion.VERSION_11
-                androidExt.compileOptions.targetCompatibility = JavaVersion.VERSION_11
-            }
-        }
-    }
-}
 
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
