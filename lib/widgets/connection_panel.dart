@@ -66,7 +66,7 @@ class ConnectionPanel extends StatelessWidget {
     }
   }
 
-  IconData _getStatusIcon(BluetoothService service) {
+  IconData _getStatusIcon(SmartInsoleBluetoothService service) {
     if (service.isConnected) {
       return Icons.bluetooth_connected;
     } else if (service.isConnecting) {
@@ -76,7 +76,7 @@ class ConnectionPanel extends StatelessWidget {
     }
   }
 
-  String _getStatusTitle(BluetoothService service) {
+  String _getStatusTitle(SmartInsoleBluetoothService service) {
     if (service.isConnected) {
       return 'Connected to Smart Insole';
     } else if (service.isConnecting) {
@@ -86,7 +86,7 @@ class ConnectionPanel extends StatelessWidget {
     }
   }
 
-  Widget _buildActionButton(BuildContext context, BluetoothService service) {
+  Widget _buildActionButton(BuildContext context, SmartInsoleBluetoothService service) {
     if (service.isConnecting) {
       return const SizedBox(
         width: 20,
@@ -135,7 +135,7 @@ class ConnectionPanel extends StatelessWidget {
     }
   }
 
-  void _showDisconnectDialog(BuildContext context, BluetoothService service) {
+  void _showDisconnectDialog(BuildContext context, SmartInsoleBluetoothService service) {
     showDialog(
       context: context,
       builder: (BuildContext context) {

@@ -18,8 +18,8 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
   List<BluetoothDevice> _discoveredDevices = [];
   SensorData? _latestData;
   String _connectionStatus = 'Disconnected';
-  Stream<SensorData?>? _dataStream;
-  
+  final StreamController<SensorData> _dataStreamController = StreamController<SensorData>.broadcast();
+
   // Getters
   bool get isScanning => _isScanning;
   bool get isConnected => _isConnected;
@@ -28,7 +28,7 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
   SensorData? get latestData => _latestData;
   String get connectionStatus => _connectionStatus;
   BluetoothDevice? get connectedDevice => _connectedDevice;
-  Stream<SensorData?>? get dataStream => _dataStream;
+  Stream<SensorData> get dataStream => _dataStreamController.stream;
 
   SmartInsoleBluetoothService() {
     _initializeBluetooth();
@@ -170,6 +170,12 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
       debugPrint('Received data: $jsonString');
       
       _latestData = SensorData.fromJson(jsonString);
+      
+      // Add to stream only if data is valid
+      if (_latestData != null) {
+        _dataStreamController.add(_latestData!);
+      }
+      
       notifyListeners();
       
     } catch (e) {
@@ -237,6 +243,7 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _dataStreamController.close();
     disconnect();
     super.dispose();
   }
