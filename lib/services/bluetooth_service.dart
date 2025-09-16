@@ -115,19 +115,31 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
       _updateConnectionStatus('Connecting to ${device.name}...');
       notifyListeners();
 
-      _connection = await BluetoothConnection.toAddress(device.address);
+      // Try connection with longer timeout
+      _connection = await BluetoothConnection.toAddress(device.address)
+          .timeout(Duration(seconds: 10));
       
       _isConnecting = false;
       _isConnected = true;
       _updateConnectionStatus('Connected to ${device.name}');
       notifyListeners();
 
-      // Start listening to data
+      // Start listening to data with error handling
       _dataSubscription = _connection!.input!.listen(
         _onDataReceived,
-        onError: _onConnectionError,
-        onDone: _onConnectionDone,
+        onError: (error) {
+          print('Data stream error: $error');
+          _reconnectDevice();
+        },
+        onDone: () {
+          print('Data stream closed');
+          _reconnectDevice();
+        },
       );
+
+      // Send a test command to verify connection
+      _connection!.output.add(Uint8List.fromList('ping\n'.codeUnits));
+      await _connection!.output.allSent;
 
     } catch (e) {
       print('Error connecting to device: $e');
@@ -135,8 +147,14 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
       _isConnected = false;
       _connection = null;
       _connectedDevice = null;
-      _updateConnectionStatus('Connection failed: $e');
+      _updateConnectionStatus('Connection failed. Retrying...');
       notifyListeners();
+      
+      // Auto-retry connection after delay
+      await Future.delayed(Duration(seconds: 2));
+      if (!_isConnected && _connectedDevice != null) {
+        connectToDevice(device);
+      }
     }
   }
 
@@ -171,6 +189,7 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
               _latestData = sensorData;
               _dataStreamController.add(sensorData);
               notifyListeners();
+              print('Sensor data received and parsed successfully');
             }
           } catch (e) {
             print('Error parsing JSON line: $line, Error: $e');
@@ -182,14 +201,26 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
     }
   }
 
+  Future<void> _reconnectDevice() async {
+    if (_connectedDevice == null) return;
+    
+    _updateConnectionStatus('Connection lost. Reconnecting...');
+    await disconnect();
+    
+    await Future.delayed(Duration(seconds: 2));
+    if (_connectedDevice != null) {
+      await connectToDevice(_connectedDevice!);
+    }
+  }
+
   void _onConnectionError(error) {
     print('Connection error: $error');
-    disconnect();
+    _reconnectDevice();
   }
 
   void _onConnectionDone() {
     print('Connection closed');
-    disconnect();
+    _reconnectDevice();
   }
 
   Future<void> disconnect() async {

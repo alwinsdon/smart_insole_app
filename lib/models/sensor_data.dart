@@ -43,8 +43,8 @@ class IMUData {
 
   factory IMUData.fromJson(Map<String, dynamic> json) {
     return IMUData(
-      accel: AccelerometerData.fromJson(json['accel'] ?? {}),
-      gyro: GyroscopeData.fromJson(json['gyro'] ?? {}),
+      accel: AccelerometerData.fromJson(json['accelerometer'] ?? {}),
+      gyro: GyroscopeData.fromJson(json['gyroscope'] ?? {}),
       shake: json['shake'] ?? false,
     );
   }
@@ -129,13 +129,27 @@ class PressureData {
     required this.toe,
   });
 
-  factory PressureData.fromJson(Map<String, dynamic> json) {
-    return PressureData(
-      heel: (json['Heel'] ?? 0.0).toDouble(),
-      arch: (json['Arch'] ?? 0.0).toDouble(),
-      ball: (json['Ball'] ?? 0.0).toDouble(),
-      toe: (json['Toe'] ?? 0.0).toDouble(),
-    );
+  factory PressureData.fromJson(dynamic json) {
+    if (json is List) {
+      // Handle array format from ESP32: [heel, arch, ball, toe]
+      return PressureData(
+        heel: json.length > 0 ? (json[0] ?? 0.0).toDouble() : 0.0,
+        arch: json.length > 1 ? (json[1] ?? 0.0).toDouble() : 0.0,
+        ball: json.length > 2 ? (json[2] ?? 0.0).toDouble() : 0.0,
+        toe: json.length > 3 ? (json[3] ?? 0.0).toDouble() : 0.0,
+      );
+    } else if (json is Map<String, dynamic>) {
+      // Handle object format
+      return PressureData(
+        heel: (json['Heel'] ?? 0.0).toDouble(),
+        arch: (json['Arch'] ?? 0.0).toDouble(),
+        ball: (json['Ball'] ?? 0.0).toDouble(),
+        toe: (json['Toe'] ?? 0.0).toDouble(),
+      );
+    } else {
+      // Default values
+      return PressureData(heel: 0.0, arch: 0.0, ball: 0.0, toe: 0.0);
+    }
   }
 
   Map<String, dynamic> toJson() {
