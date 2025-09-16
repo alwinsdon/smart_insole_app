@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/bluetooth_service.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 class ConnectionPanel extends StatelessWidget {
   const ConnectionPanel({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<BluetoothService>(
+    return Consumer<SmartInsoleBluetoothService>(
       builder: (context, bluetoothService, child) {
         return Card(
           color: _getStatusColor(bluetoothService),
@@ -57,7 +56,7 @@ class ConnectionPanel extends StatelessWidget {
     );
   }
 
-  Color _getStatusColor(BluetoothService service) {
+  Color _getStatusColor(SmartInsoleBluetoothService service) {
     if (service.isConnected) {
       return Colors.green;
     } else if (service.isConnecting) {
@@ -115,9 +114,9 @@ class ConnectionPanel extends StatelessWidget {
     );
   }
 
-  void _handleConnect(BuildContext context, BluetoothService service) async {
+  void _handleConnect(BuildContext context, SmartInsoleBluetoothService service) async {
     // Check if Bluetooth is enabled
-    if (service.bluetoothState != BluetoothState.STATE_ON) {
+    if (service.bluetoothState != 'STATE_ON') {
       final enabled = await service.enableBluetooth();
       if (!enabled) {
         _showSnackBar(context, 'Please enable Bluetooth to continue', Colors.red);

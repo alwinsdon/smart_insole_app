@@ -14,7 +14,7 @@ class SmartInsoleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => BluetoothService(),
+      create: (context) => SmartInsoleBluetoothService(),
       child: MaterialApp(
         title: 'Smart Insole System',
         theme: ThemeData(

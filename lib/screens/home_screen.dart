@@ -28,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Consumer<BluetoothService>(
+      body: Consumer<SmartInsoleBluetoothService>(
         builder: (context, bluetoothService, child) {
           return StreamBuilder<SensorData>(
             stream: bluetoothService.dataStream,

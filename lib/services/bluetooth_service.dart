@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../models/sensor_data.dart';
 
-class BluetoothService extends ChangeNotifier {
+class SmartInsoleBluetoothService extends ChangeNotifier {
   static const String serviceUUID = "12345678-1234-1234-1234-123456789abc";
   static const String characteristicUUID = "87654321-4321-4321-4321-cba987654321";
   
@@ -14,19 +14,23 @@ class BluetoothService extends ChangeNotifier {
   
   bool _isScanning = false;
   bool _isConnected = false;
+  bool _isConnecting = false;
   List<BluetoothDevice> _discoveredDevices = [];
   SensorData? _latestData;
   String _connectionStatus = 'Disconnected';
+  Stream<SensorData?>? _dataStream;
   
   // Getters
   bool get isScanning => _isScanning;
   bool get isConnected => _isConnected;
+  bool get isConnecting => _isConnecting;
   List<BluetoothDevice> get discoveredDevices => _discoveredDevices;
   SensorData? get latestData => _latestData;
   String get connectionStatus => _connectionStatus;
   BluetoothDevice? get connectedDevice => _connectedDevice;
+  Stream<SensorData?>? get dataStream => _dataStream;
 
-  BluetoothService() {
+  SmartInsoleBluetoothService() {
     _initializeBluetooth();
   }
 
@@ -108,11 +112,14 @@ class BluetoothService extends ChangeNotifier {
     }
 
     try {
+      _isConnecting = true;
       _updateConnectionStatus('Connecting to ${device.platformName}...');
+      notifyListeners();
       
       await device.connect(timeout: const Duration(seconds: 15));
       _connectedDevice = device;
       _isConnected = true;
+      _isConnecting = false;
       
       _updateConnectionStatus('Connected! Discovering services...');
       
@@ -151,6 +158,7 @@ class BluetoothService extends ChangeNotifier {
       debugPrint('Connection error: $e');
       _updateConnectionStatus('Connection failed: $e');
       _isConnected = false;
+      _isConnecting = false;
       _connectedDevice = null;
       notifyListeners();
     }
@@ -193,6 +201,38 @@ class BluetoothService extends ChangeNotifier {
   void _updateConnectionStatus(String status) {
     _connectionStatus = status;
     debugPrint('Bluetooth status: $status');
+  }
+
+  // Legacy methods for compatibility with old UI
+  Future<bool> enableBluetooth() async {
+    try {
+      // Check if Bluetooth is available and enabled
+      return await FlutterBluePlus.isAvailable;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> connectToSmartInsole() async {
+    try {
+      await startScanning();
+      // Find a device with SmartInsole in the name
+      for (BluetoothDevice device in _discoveredDevices) {
+        if (device.platformName.toLowerCase().contains('smartinsole') ||
+            device.platformName.toLowerCase().contains('pico')) {
+          await connectToDevice(device);
+          return _isConnected;
+        }
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Getter for bluetooth state compatibility
+  String get bluetoothState {
+    return _isConnected ? 'STATE_ON' : 'STATE_OFF';
   }
 
   @override
