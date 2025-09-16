@@ -115,21 +115,24 @@ class ConnectionPanel extends StatelessWidget {
   }
 
   void _handleConnect(BuildContext context, SmartInsoleBluetoothService service) async {
-    // Check if Bluetooth is enabled
-    if (service.bluetoothState != BluetoothState.on) {
-      await service.enableBluetooth();
-      // Give it a moment to enable
-      await Future.delayed(Duration(seconds: 1));
-    }
-
-    // Attempt connection
+    // Simple connection approach
     try {
-      await service.connectToSmartInsole();
-      _showSnackBar(context, 'Connected successfully!', Colors.green);
+      await service.startScanning();
+      
+      // Find SmartInsole device
+      final devices = service.discoveredDevices;
+      final smartInsoleDevice = devices.firstWhere(
+        (device) => device.name?.contains('SmartInsole') == true,
+        orElse: () => throw Exception('SmartInsole device not found'),
+      );
+      
+      // Connect directly to the device
+      await service.connectToDevice(smartInsoleDevice);
+      
     } catch (e) {
       _showSnackBar(
         context,
-        'Failed to connect. Make sure Smart Insole is powered on and nearby.',
+        'Failed to connect: $e',
         Colors.red,
       );
     }

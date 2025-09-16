@@ -115,31 +115,28 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
       _updateConnectionStatus('Connecting to ${device.name}...');
       notifyListeners();
 
-      // Try connection with longer timeout
-      _connection = await BluetoothConnection.toAddress(device.address)
-          .timeout(Duration(seconds: 10));
+      // Simple connection without timeout - let it take time if needed
+      _connection = await BluetoothConnection.toAddress(device.address);
       
       _isConnecting = false;
       _isConnected = true;
       _updateConnectionStatus('Connected to ${device.name}');
       notifyListeners();
 
-      // Start listening to data with error handling
+      // Start listening to data - simple approach
       _dataSubscription = _connection!.input!.listen(
         _onDataReceived,
         onError: (error) {
-          print('Data stream error: $error');
-          _reconnectDevice();
+          print('Connection error: $error');
+          disconnect();
         },
         onDone: () {
-          print('Data stream closed');
-          _reconnectDevice();
+          print('Connection closed');
+          disconnect();
         },
       );
 
-      // Send a test command to verify connection
-      _connection!.output.add(Uint8List.fromList('ping\n'.codeUnits));
-      await _connection!.output.allSent;
+      print('Successfully connected to ${device.name}');
 
     } catch (e) {
       print('Error connecting to device: $e');
@@ -147,14 +144,8 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
       _isConnected = false;
       _connection = null;
       _connectedDevice = null;
-      _updateConnectionStatus('Connection failed. Retrying...');
+      _updateConnectionStatus('Connection failed: $e');
       notifyListeners();
-      
-      // Auto-retry connection after delay
-      await Future.delayed(Duration(seconds: 2));
-      if (!_isConnected && _connectedDevice != null) {
-        connectToDevice(device);
-      }
     }
   }
 
@@ -201,27 +192,7 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
     }
   }
 
-  Future<void> _reconnectDevice() async {
-    if (_connectedDevice == null) return;
-    
-    _updateConnectionStatus('Connection lost. Reconnecting...');
-    await disconnect();
-    
-    await Future.delayed(Duration(seconds: 2));
-    if (_connectedDevice != null) {
-      await connectToDevice(_connectedDevice!);
-    }
-  }
-
-  void _onConnectionError(error) {
-    print('Connection error: $error');
-    _reconnectDevice();
-  }
-
-  void _onConnectionDone() {
-    print('Connection closed');
-    _reconnectDevice();
-  }
+  // Removed auto-reconnection to prevent connection loops
 
   Future<void> disconnect() async {
     try {
