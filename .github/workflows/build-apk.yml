@@ -32,6 +32,19 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Patch flutter_bluetooth_serial to use SDK 34
+        shell: bash
+        run: |
+          set -e
+          PLUG_DIR=$(find "$HOME/.pub-cache/hosted" -type d -path "*flutter_bluetooth_serial-*/android" | head -n 1 || true)
+          echo "Plugin android dir: $PLUG_DIR"
+          if [ -n "$PLUG_DIR" ] && [ -f "$PLUG_DIR/build.gradle" ]; then
+            sed -i -E 's/compileSdkVersion[[:space:]]+[0-9]+/compileSdkVersion 34/' "$PLUG_DIR/build.gradle" || true
+            sed -i -E 's/targetSdkVersion[[:space:]]+[0-9]+/targetSdkVersion 34/' "$PLUG_DIR/build.gradle" || true
+            # If minSdkVersion missing or too low, ensure at least 21
+            grep -q "minSdkVersion" "$PLUG_DIR/build.gradle" || sed -i '/defaultConfig[[:space:]]*{/a \\        minSdkVersion 21' "$PLUG_DIR/build.gradle"
+          fi
+
       - name: Build APK
         run: flutter build apk --release
 
