@@ -1,16 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import '../models/sensor_data.dart';
 
 class SmartInsoleBluetoothService extends ChangeNotifier {
-  static const String serviceUUID = "12345678-1234-1234-1234-123456789abc";
-  static const String characteristicUUID = "87654321-4321-4321-4321-cba987654321";
+  static const String targetDeviceName = "SmartInsole_ESP32";
   
   BluetoothDevice? _connectedDevice;
-  BluetoothCharacteristic? _dataCharacteristic;
-  StreamSubscription<List<int>>? _dataSubscription;
+  BluetoothConnection? _connection;
+  StreamSubscription<Uint8List>? _dataSubscription;
   
   bool _isScanning = false;
   bool _isConnected = false;
@@ -30,157 +30,166 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
   BluetoothDevice? get connectedDevice => _connectedDevice;
   Stream<SensorData> get dataStream => _dataStreamController.stream;
 
+  // For UI compatibility
+  BluetoothState get bluetoothState => _isConnected ? BluetoothState.on : BluetoothState.off;
+
   SmartInsoleBluetoothService() {
     _initializeBluetooth();
   }
 
   Future<void> _initializeBluetooth() async {
-    // Check if Bluetooth is supported
-    if (await FlutterBluePlus.isSupported == false) {
-      _updateConnectionStatus('Bluetooth not supported');
-      return;
-    }
-
-    // Listen to Bluetooth adapter state
-    FlutterBluePlus.adapterState.listen((BluetoothAdapterState state) {
-      if (state == BluetoothAdapterState.on) {
-        _updateConnectionStatus('Bluetooth ready');
+    try {
+      bool? isEnabled = await FlutterBluetoothSerial.instance.isEnabled;
+      if (isEnabled != true) {
+        _updateConnectionStatus('Bluetooth disabled');
       } else {
-        _updateConnectionStatus('Bluetooth ${state.name}');
-        if (_isConnected) {
-          disconnect();
-        }
+        _updateConnectionStatus('Bluetooth ready');
       }
-    });
+    } catch (e) {
+      print('Error initializing Bluetooth: $e');
+      _updateConnectionStatus('Bluetooth error');
+    }
+  }
+
+  Future<void> enableBluetooth() async {
+    try {
+      bool? isEnabled = await FlutterBluetoothSerial.instance.isEnabled;
+      if (isEnabled != true) {
+        await FlutterBluetoothSerial.instance.requestEnable();
+        _updateConnectionStatus('Bluetooth enabled');
+      }
+    } catch (e) {
+      print('Error enabling Bluetooth: $e');
+      _updateConnectionStatus('Failed to enable Bluetooth');
+    }
   }
 
   Future<void> startScanning() async {
     if (_isScanning) return;
     
-    _discoveredDevices.clear();
-    _isScanning = true;
-    _updateConnectionStatus('Scanning for devices...');
-    notifyListeners();
-
     try {
-      // Start scanning for devices with our service UUID
-      await FlutterBluePlus.startScan(
-        withServices: [Guid(serviceUUID)],
-        timeout: const Duration(seconds: 10),
-      );
+      _isScanning = true;
+      _discoveredDevices.clear();
+      _updateConnectionStatus('Scanning for devices...');
+      notifyListeners();
 
-      // Listen to scan results
-      FlutterBluePlus.scanResults.listen((results) {
-        for (ScanResult result in results) {
-          if (!_discoveredDevices.contains(result.device)) {
-            // Only add devices that advertise our service or have recognizable name
-            if (result.advertisementData.serviceUuids.contains(Guid(serviceUUID)) ||
-                result.device.platformName.toLowerCase().contains('smartinsole') ||
-                result.device.platformName.toLowerCase().contains('pico')) {
-              _discoveredDevices.add(result.device);
-              notifyListeners();
-            }
+      // Get bonded devices first
+      List<BluetoothDevice> bondedDevices = await FlutterBluetoothSerial.instance.getBondedDevices();
+      
+      for (BluetoothDevice device in bondedDevices) {
+        if (device.name != null && device.name!.contains('SmartInsole')) {
+          _discoveredDevices.add(device);
+          notifyListeners();
+        }
+      }
+      
+      // Start discovery for new devices
+      _updateConnectionStatus('Discovering devices...');
+      
+      await for (BluetoothDiscoveryResult result in FlutterBluetoothSerial.instance.startDiscovery()) {
+        if (result.device.name != null && result.device.name!.contains('SmartInsole')) {
+          if (!_discoveredDevices.any((d) => d.address == result.device.address)) {
+            _discoveredDevices.add(result.device);
+            notifyListeners();
           }
         }
-      });
-
-      // Wait for scan to complete
-      await Future.delayed(const Duration(seconds: 10));
-      await stopScanning();
+      }
       
-    } catch (e) {
-      _updateConnectionStatus('Scan error: $e');
       _isScanning = false;
+      _updateConnectionStatus(_discoveredDevices.isEmpty ? 'No devices found' : 'Scan complete');
+      notifyListeners();
+    } catch (e) {
+      print('Error during scanning: $e');
+      _isScanning = false;
+      _updateConnectionStatus('Scan failed');
       notifyListeners();
     }
-  }
-
-  Future<void> stopScanning() async {
-    await FlutterBluePlus.stopScan();
-    _isScanning = false;
-    if (_discoveredDevices.isEmpty) {
-      _updateConnectionStatus('No devices found');
-    } else {
-      _updateConnectionStatus('Found ${_discoveredDevices.length} device(s)');
-    }
-    notifyListeners();
   }
 
   Future<void> connectToDevice(BluetoothDevice device) async {
-    if (_isConnected || _connectedDevice != null) {
-      await disconnect();
-    }
-
+    if (_isConnecting || _isConnected) return;
+    
     try {
       _isConnecting = true;
-      _updateConnectionStatus('Connecting to ${device.platformName}...');
-      notifyListeners();
-      
-      await device.connect(timeout: const Duration(seconds: 15));
       _connectedDevice = device;
+      _updateConnectionStatus('Connecting to ${device.name}...');
+      notifyListeners();
+
+      _connection = await BluetoothConnection.toAddress(device.address);
+      
+      _isConnecting = false;
       _isConnected = true;
-      _isConnecting = false;
-      
-      _updateConnectionStatus('Connected! Discovering services...');
-      
-      // Discover services
-      List<BluetoothService> services = await device.discoverServices();
-      
-      // Find our service and characteristic
-      for (BluetoothService service in services) {
-        if (service.uuid == Guid(serviceUUID)) {
-          for (BluetoothCharacteristic characteristic in service.characteristics) {
-            if (characteristic.uuid == Guid(characteristicUUID)) {
-              _dataCharacteristic = characteristic;
-              
-              // Subscribe to notifications
-              await characteristic.setNotifyValue(true);
-              _dataSubscription = characteristic.lastValueStream.listen(
-                _onDataReceived,
-                onError: (error) {
-                  debugPrint('Characteristic stream error: $error');
-                  _updateConnectionStatus('Data stream error');
-                },
-              );
-              
-              _updateConnectionStatus('Connected and receiving data');
-              notifyListeners();
-              return;
-            }
-          }
-        }
-      }
-      
-      _updateConnectionStatus('Service/characteristic not found');
-      await disconnect();
-      
+      _updateConnectionStatus('Connected to ${device.name}');
+      notifyListeners();
+
+      // Start listening to data
+      _dataSubscription = _connection!.input!.listen(
+        _onDataReceived,
+        onError: _onConnectionError,
+        onDone: _onConnectionDone,
+      );
+
     } catch (e) {
-      debugPrint('Connection error: $e');
-      _updateConnectionStatus('Connection failed: $e');
-      _isConnected = false;
+      print('Error connecting to device: $e');
       _isConnecting = false;
+      _isConnected = false;
+      _connection = null;
       _connectedDevice = null;
+      _updateConnectionStatus('Connection failed: $e');
       notifyListeners();
     }
   }
 
-  void _onDataReceived(List<int> data) {
+  Future<void> connectToSmartInsole() async {
+    // Find and connect to SmartInsole device
+    await startScanning();
+    
+    BluetoothDevice? targetDevice = _discoveredDevices.firstWhere(
+      (device) => device.name?.contains('SmartInsole') == true,
+      orElse: () => throw Exception('SmartInsole device not found'),
+    );
+    
+    await connectToDevice(targetDevice);
+  }
+
+  void _onDataReceived(Uint8List data) {
     try {
-      String jsonString = utf8.decode(data);
-      debugPrint('Received data: $jsonString');
+      String jsonString = String.fromCharCodes(data).trim();
       
-      _latestData = SensorData.fromJson(jsonString);
+      // Handle multiple JSON objects in one packet
+      List<String> lines = jsonString.split('\n');
       
-      // Add to stream only if data is valid
-      if (_latestData != null) {
-        _dataStreamController.add(_latestData!);
+      for (String line in lines) {
+        line = line.trim();
+        if (line.isNotEmpty && line.startsWith('{') && line.endsWith('}')) {
+          try {
+            Map<String, dynamic> jsonData = json.decode(line);
+            
+            // Only process sensor_data type messages
+            if (jsonData['type'] == 'sensor_data') {
+              SensorData sensorData = SensorData.fromJson(jsonData);
+              _latestData = sensorData;
+              _dataStreamController.add(sensorData);
+              notifyListeners();
+            }
+          } catch (e) {
+            print('Error parsing JSON line: $line, Error: $e');
+          }
+        }
       }
-      
-      notifyListeners();
-      
     } catch (e) {
-      debugPrint('Error parsing received data: $e');
+      print('Error processing received data: $e');
     }
+  }
+
+  void _onConnectionError(error) {
+    print('Connection error: $error');
+    disconnect();
+  }
+
+  void _onConnectionDone() {
+    print('Connection closed');
+    disconnect();
   }
 
   Future<void> disconnect() async {
@@ -188,63 +197,37 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
       await _dataSubscription?.cancel();
       _dataSubscription = null;
       
-      if (_connectedDevice != null) {
-        await _connectedDevice!.disconnect();
-      }
+      await _connection?.close();
+      _connection = null;
       
-    } catch (e) {
-      debugPrint('Disconnect error: $e');
-    } finally {
-      _connectedDevice = null;
-      _dataCharacteristic = null;
       _isConnected = false;
+      _isConnecting = false;
+      _connectedDevice = null;
       _latestData = null;
+      
       _updateConnectionStatus('Disconnected');
       notifyListeners();
+    } catch (e) {
+      print('Error during disconnect: $e');
     }
   }
 
   void _updateConnectionStatus(String status) {
     _connectionStatus = status;
-    debugPrint('Bluetooth status: $status');
-  }
-
-  // Legacy methods for compatibility with old UI
-  Future<bool> enableBluetooth() async {
-    try {
-      // Check if Bluetooth is available and enabled
-      return await FlutterBluePlus.isAvailable;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> connectToSmartInsole() async {
-    try {
-      await startScanning();
-      // Find a device with SmartInsole in the name
-      for (BluetoothDevice device in _discoveredDevices) {
-        if (device.platformName.toLowerCase().contains('smartinsole') ||
-            device.platformName.toLowerCase().contains('pico')) {
-          await connectToDevice(device);
-          return _isConnected;
-        }
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Getter for bluetooth state compatibility
-  String get bluetoothState {
-    return _isConnected ? 'STATE_ON' : 'STATE_OFF';
+    print('Bluetooth Status: $status');
   }
 
   @override
   void dispose() {
-    _dataStreamController.close();
     disconnect();
+    _dataStreamController.close();
     super.dispose();
   }
+}
+
+// Enum for compatibility with old code
+enum BluetoothState {
+  on,
+  off,
+  unknown,
 }
