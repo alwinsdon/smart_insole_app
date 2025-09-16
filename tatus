@@ -1,0 +1,5 @@
+[33m6f38e39[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Android: add default styles and remove missing launcher icon to fix CI build
+[33m7457f5e[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Remove asset and font entries from pubspec.yaml
+[33mcc8b3bd[m Fix critical build error: remove non-existent assets and fonts from pubspec.yaml
+[33made2623[m Complete build fixes: update Java/Kotlin compatibility and add clean step
+[33m791b361[m Fix build errors: correct sqrt() usage and update Kotlin version
