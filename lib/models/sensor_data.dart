@@ -82,7 +82,7 @@ class AccelerometerData {
   }
 
   // Calculate total acceleration magnitude
-  double get magnitude => (x * x + y * y + z * z).sqrt();
+  double get magnitude => sqrt(x * x + y * y + z * z);
 
   // Get tilt angles in degrees
   double get pitch => (atan2(x, sqrt(y * y + z * z)) * 180 / pi);
@@ -113,7 +113,7 @@ class GyroscopeData {
   }
 
   // Calculate total rotation magnitude
-  double get magnitude => (x * x + y * y + z * z).sqrt();
+  double get magnitude => sqrt(x * x + y * y + z * z);
 }
 
 class PressureData {
