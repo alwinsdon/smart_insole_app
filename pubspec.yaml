@@ -1,0 +1,56 @@
+name: smart_insole_app
+description: Smart Insole System - Real-time gait analysis and pressure monitoring
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+  flutter: ">=3.13.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Bluetooth communication
+  flutter_bluetooth_serial: ^0.4.0
+  
+  # JSON parsing
+  json_serializable: ^6.7.1
+  json_annotation: ^4.8.1
+  
+  # State management
+  provider: ^6.1.1
+  
+  # UI components
+  cupertino_icons: ^1.0.6
+  flutter_svg: ^2.0.9
+  
+  # Charts and data visualization
+  fl_chart: ^0.65.0
+  syncfusion_flutter_charts: ^23.2.7
+  
+  # 3D visualization
+  vector_math: ^2.1.4
+  
+  # Permissions
+  permission_handler: ^11.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.7
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/icons/
+  
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: fonts/Roboto-Regular.ttf
+        - asset: fonts/Roboto-Bold.ttf
+          weight: 700
