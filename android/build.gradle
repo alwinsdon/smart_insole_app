@@ -26,6 +26,28 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
+// Ensure all Android libraries/plugins compile against SDK 34 (fixes android:attr/lStar)
+subprojects { subproject ->
+    afterEvaluate {
+        if (subproject.hasProperty('android')) {
+            def androidExt = subproject.extensions.findByName('android')
+            if (androidExt != null) {
+                androidExt.compileSdkVersion = 34
+                if (androidExt.defaultConfig != null) {
+                    androidExt.defaultConfig.targetSdkVersion = 34
+                    if (androidExt.defaultConfig.minSdkVersion == null || androidExt.defaultConfig.minSdkVersion.apiLevel < 21) {
+                        androidExt.defaultConfig.minSdkVersion 21
+                    }
+                }
+                if (androidExt.compileOptions != null) {
+                    androidExt.compileOptions.sourceCompatibility = JavaVersion.VERSION_11
+                    androidExt.compileOptions.targetCompatibility = JavaVersion.VERSION_11
+                }
+            }
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
