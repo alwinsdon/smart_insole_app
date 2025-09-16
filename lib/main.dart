@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/bluetooth_service.dart';
 import 'screens/home_screen.dart';
+import 'screens/sign_in_page.dart';
 
 void main() {
   runApp(const SmartInsoleApp());
@@ -195,6 +196,7 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
       );
     }
 
+    // For now, go straight to Home. We can gate with sign-in later.
     return const HomeScreen();
   }
 }
