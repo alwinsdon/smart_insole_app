@@ -101,7 +101,7 @@ class ConnectionPanel extends StatelessWidget {
     return ElevatedButton(
       onPressed: service.isConnected
           ? () => _showDisconnectDialog(context, service)
-          : () => _handleConnect(context, service),
+          : () => _openDevicePicker(context, service),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: _getStatusColor(service),
@@ -111,6 +111,75 @@ class ConnectionPanel extends StatelessWidget {
         service.isConnected ? 'Disconnect' : 'Connect',
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
+    );
+  }
+
+  Future<void> _openDevicePicker(BuildContext context, SmartInsoleBluetoothService service) async {
+    await service.startScanning();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.bluetooth_searching),
+                    const SizedBox(width: 8),
+                    const Text('Select Device', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () async {
+                        await service.startScanning();
+                      },
+                    )
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (service.discoveredDevices.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.0),
+                    child: Center(child: Text('Scanning... If nothing appears, ensure the insole is powered on.')),
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: service.discoveredDevices.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final d = service.discoveredDevices[index];
+                        return ListTile(
+                          leading: const Icon(Icons.devices),
+                          title: Text(d.name ?? 'Unknown'),
+                          subtitle: Text(d.address),
+                          onTap: () async {
+                            Navigator.of(context).pop();
+                            try {
+                              await service.connectToDevice(d);
+                            } catch (e) {
+                              _showSnackBar(context, 'Failed to connect: $e', Colors.red);
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

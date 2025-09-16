@@ -16,22 +16,36 @@ class SmartInsoleApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => SmartInsoleBluetoothService(),
       child: MaterialApp(
-        title: 'Smart Insole System',
+        title: 'Smart Insole',
         theme: ThemeData(
-          primarySwatch: Colors.blue,
           useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF2E7D32), // brand green
+            brightness: Brightness.light,
+          ),
           appBarTheme: const AppBarTheme(
             elevation: 0,
             centerTitle: true,
           ),
           cardTheme: CardTheme(
-            elevation: 4,
+            elevation: 3,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
         ),
+        darkTheme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF2E7D32),
+            brightness: Brightness.dark,
+          ),
+          appBarTheme: const AppBarTheme(
+            elevation: 0,
+            centerTitle: true,
+          ),
+        ),
+        themeMode: ThemeMode.system,
         home: const PermissionWrapper(),
         debugShowCheckedModeBanner: false,
       ),
