@@ -167,7 +167,7 @@ class SmartInsoleBluetoothService extends ChangeNotifier {
             
             // Only process sensor_data type messages
             if (jsonData['type'] == 'sensor_data') {
-              SensorData sensorData = SensorData.fromJson(jsonData);
+              SensorData sensorData = SensorData.fromJson(line);
               _latestData = sensorData;
               _dataStreamController.add(sensorData);
               notifyListeners();
