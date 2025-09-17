@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'services/bluetooth_service.dart';
+import 'services/auth_service.dart';
 import 'screens/home_screen.dart';
-import 'screens/sign_in_page.dart';
+import 'screens/auth_screen.dart';
 
 void main() {
   runApp(const SmartInsoleApp());
@@ -24,6 +26,7 @@ class SmartInsoleApp extends StatelessWidget {
             seedColor: const Color(0xFF2E7D32), // brand green
             brightness: Brightness.light,
           ),
+          textTheme: GoogleFonts.poppinsTextTheme(),
           appBarTheme: const AppBarTheme(
             elevation: 0,
             centerTitle: true,
@@ -41,13 +44,18 @@ class SmartInsoleApp extends StatelessWidget {
             seedColor: const Color(0xFF2E7D32),
             brightness: Brightness.dark,
           ),
+          textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
           appBarTheme: const AppBarTheme(
             elevation: 0,
             centerTitle: true,
           ),
         ),
         themeMode: ThemeMode.system,
-        home: const PermissionWrapper(),
+        routes: {
+          '/': (context) => const AuthWrapper(),
+          '/auth': (context) => const AuthScreen(),
+          '/home': (context) => const PermissionWrapper(),
+        },
         debugShowCheckedModeBanner: false,
       ),
     );
@@ -196,7 +204,30 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
       );
     }
 
-    // For now, go straight to Home. We can gate with sign-in later.
     return const HomeScreen();
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: AuthService().isLoggedIn(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        if (snapshot.data == true) {
+          return const PermissionWrapper();
+        } else {
+          return const AuthScreen();
+        }
+      },
+    );
   }
 }
