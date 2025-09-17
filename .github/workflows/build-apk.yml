@@ -32,9 +32,7 @@ jobs:
           echo "y" | sdkmanager --licenses || true
 
       - name: Clean Flutter cache
-        run: |
-          flutter clean
-          cd android && ./gradlew clean && cd ..
+        run: flutter clean
 
       - name: Get dependencies
         run: flutter pub get
