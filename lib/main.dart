@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'services/bluetooth_service.dart';
 import 'services/auth_service.dart';
-import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
+import 'screens/main_app.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const SmartInsoleApp());
 }
 
@@ -51,11 +54,7 @@ class SmartInsoleApp extends StatelessWidget {
           ),
         ),
         themeMode: ThemeMode.system,
-        routes: {
-          '/': (context) => const AuthWrapper(),
-          '/auth': (context) => const AuthScreen(),
-          '/home': (context) => const PermissionWrapper(),
-        },
+        home: const PermissionWrapper(),
         debugShowCheckedModeBanner: false,
       ),
     );
@@ -204,7 +203,8 @@ class _PermissionWrapperState extends State<PermissionWrapper> {
       );
     }
 
-    return const HomeScreen();
+    // Check authentication and route accordingly
+    return const AuthWrapper();
   }
 }
 
@@ -217,13 +217,25 @@ class AuthWrapper extends StatelessWidget {
       future: AuthService().isLoggedIn(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Loading...',
+                    style: GoogleFonts.poppins(),
+                  ),
+                ],
+              ),
+            ),
           );
         }
         
         if (snapshot.data == true) {
-          return const PermissionWrapper();
+          return const MainApp();
         } else {
           return const AuthScreen();
         }
